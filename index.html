@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+   <title>Tetris</title>
+   <style>
+      .container {
+         width: 200px;
+         margin: 0 auto;
+      }
+
+      .tetris-grid {
+         width: 200px;
+         height: 400px;
+         border: 1px solid black;
+         display: grid;
+         grid-template-rows: repeat(20, 20px);
+         grid-template-columns: repeat(10, 20px);
+      }
+
+      .tetris-cell {
+         background-color: white;
+         border: 1px solid gray;
+         width: 18px;
+         height: 18px;
+      }
+
+      .tetris-cell.filled {
+         background-color: blue;
+      }
+   </style>
+</head>
+
+<body>
+   <div class="container">
+      <div class="tetris-grid"></div>
+   </div>
+
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+   <script>
+
+
+      $(document).ready(function () {
+         var grid = [];
+         var currentPiece = {};
+         var intervalId;
+
+         function placePiece() {
+            $('.tetris-cell').removeClass('filled');
+
+            for (var row = 0; row < grid.length; row++) {
+               for (var col = 0; col < grid[row].length; col++) {
+                  if (grid[row][col]) {
+                     var $cell = $('.tetris-grid').find('.tetris-cell').eq(row * 10 + col);
+                     $cell.addClass('filled');
+                  }
+               }
+            }
+
+            for (var row = 0; row < currentPiece.shape.length; row++) {
+               for (var col = 0; col < currentPiece.shape[row].length; col++) {
+                  if (currentPiece.shape[row][col]) {
+                     var $cell = $('.tetris-grid').find('.tetris-cell').eq((currentPiece.row + row) * 10 + (currentPiece.col + col));
+                     $cell.addClass('filled');
+                  }
+               }
+            }
+         }
+
+
+         function movePiece(rowOffset, colOffset) {
+            for (var row = 0; row < currentPiece.shape.length; row++) {
+               for (var col = 0; col < currentPiece.shape[row].length; col++) {
+                  if (currentPiece.shape[row][col]) {
+                     var $cell = $('.tetris-grid').find('.tetris-cell').eq(
+                        (currentPiece.row + row) * 10 + (currentPiece.col + col)
+                     );
+                     $cell.removeClass('filled');
+                  }
+               }
+            }
+
+            currentPiece.row += rowOffset;
+            currentPiece.col += colOffset;
+
+            placePiece();
+         }
+
+         function moveDown() {
+            if (!checkCollision(1, 0)) {
+               movePiece(1, 0);
+            } else {
+               freezePiece();
+               checkLines();
+               createPiece();
+
+               if (checkCollision(0, 0)) {
+                  gameOver();
+               }
+            }
+         }
+
+         function rotatePiece() {
+            var rotatedPiece = [];
+            var rows = currentPiece.shape.length;
+            var cols = currentPiece.shape[0].length;
+
+            for (var col = 0; col < cols; col++) {
+               var newRow = [];
+
+               for (var row = rows - 1; row >= 0; row--) {
+                  newRow.push(currentPiece.shape[row][col]);
+               }
+
+               rotatedPiece.push(newRow);
+            }
+
+            if (!checkCollision(0, 0, rotatedPiece)) {
+               currentPiece.shape = rotatedPiece;
+               placePiece();
+            }
+         }
+
+         function freezePiece() {
+            for (var row = 0; row < currentPiece.shape.length; row++) {
+               for (var col = 0; col < currentPiece.shape[row].length; col++) {
+                  if (currentPiece.shape[row][col]) {
+                     var newRow = currentPiece.row + row;
+                     var newCol = currentPiece.col + col;
+
+                     grid[newRow][newCol] = 1;
+                  }
+               }
+            }
+         }
+
+         function checkCollision(rowOffset, colOffset) {
+            for (var row = 0; row < currentPiece.shape.length; row++) {
+               for (var col = 0; col < currentPiece.shape[row].length; col++) {
+                  if (currentPiece.shape[row][col]) {
+                     var newRow = currentPiece.row + row + rowOffset;
+                     var newCol = currentPiece.col + col + colOffset;
+
+                     if (
+                        newRow >= 20 ||
+                        newCol < 0 ||
+                        newCol >= 10 ||
+                        (newRow >= 0 && grid[newRow][newCol])
+                     ) {
+                        return true;
+                     }
+                  }
+               }
+            }
+
+            return false;
+         }
+
+         function checkLines() {
+            var fullRows = [];
+
+            for (var row = 0; row < grid.length; row++) {
+               if (grid[row].every(function (cell) { return cell === 1; })) {
+                  fullRows.push(row);
+               }
+            }
+
+            if (fullRows.length > 0) {
+               for (var i = 0; i < fullRows.length; i++) {
+                  var rowToRemove = fullRows[i];
+                  grid.splice(rowToRemove, 1);
+                  grid.unshift([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+               }
+            }
+         }
+
+         function gameOver() {
+            clearInterval(intervalId);
+            alert('Game Over!');
+         }
+
+         function createGrid() {
+            var $grid = $('.tetris-grid');
+            $grid.empty();
+
+            for (var row = 0; row < 20; row++) {
+               var rowArray = [];
+
+               for (var col = 0; col < 10; col++) {
+                  var $cell = $('<div>').addClass('tetris-cell');
+                  $grid.append($cell);
+                  rowArray.push(0);
+               }
+
+               grid.push(rowArray);
+            }
+         }
+
+         function createPiece() {
+            var pieces = [
+               [[1, 1, 1, 1]], // I şekli
+               [[1, 1], [1, 1]], // Kare şekli
+               [[1, 1, 0], [0, 1, 1]], // S şekli
+               [[0, 1, 1], [1, 1, 0]], // Z şekli
+               [[1, 1, 1], [0, 1, 0]], // T şekli
+               [[1, 1, 1], [0, 0, 1]], // L şekli
+               [[1, 1, 1], [1, 0, 0]] // J şekli
+            ];
+
+            var randomPiece = pieces[Math.floor(Math.random() * pieces.length)];
+            currentPiece.shape = randomPiece;
+            currentPiece.row = 0;
+            currentPiece.col = 3;
+         }
+
+         function startGame() {
+            createGrid();
+            createPiece();
+            placePiece();
+
+            intervalId = setInterval(moveDown, 1000);
+
+            $(document).keydown(handleKeyPress);
+         }
+         function handleKeyPress(event) {
+            switch (event.keyCode) {
+               case 37: // Sol
+                  if (!checkCollision(0, -1)) {
+                     movePiece(0, -1);
+                  }
+                  break;
+               case 39: // Sağ
+                  if (!checkCollision(0, 1)) {
+                     movePiece(0, 1);
+                  }
+                  break;
+               case 40: // Aşağı
+                  moveDown();
+                  break;
+               case 38: // Yukarı
+                  rotatePiece();
+                  break;
+            }
+         }
+
+
+         startGame();
+      });
+
+
+
+
+   </script>
+</body>
+
+</html>
