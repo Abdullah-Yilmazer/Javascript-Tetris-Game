@@ -7,6 +7,8 @@
       .container {
          width: 200px;
          margin: 0 auto;
+         display: flex; 
+         gap: 30px;
       }
 
       .tetris-grid {
@@ -28,31 +30,47 @@
       .tetris-cell.filled {
          background-color: blue;
       }
+
+      .saved-block-grid {
+         width: 100px;
+         height: max-content;
+         display: grid;
+         grid-template-rows: repeat(5, 20px);
+         grid-template-columns: repeat(5, 20px);
+         align-items: center;
+         justify-content: center;
+         border: black 1px solid;
+      }
    </style>
 </head>
 
 <body>
    <div class="container">
       <div class="tetris-grid"></div>
+      <div class="saved-block-grid"></div> <!-- Eklenen Kod: Kaydedilen blokların gösterileceği bölüm -->
+      <div class="next-block"></div> <!-- Eklenen Kod: Sonraki bloğun gösterileceği bölüm -->
    </div>
-
    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
    <script>
-
-
       $(document).ready(function () {
          var grid = [];
          var currentPiece = {};
+         var savedBlock = null;
          var intervalId;
+         var colors = ['yellow', 'red', 'blue', 'purple', 'green', 'orange', 'navy'];
+
+         function getRandomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+         }
 
          function placePiece() {
-            $('.tetris-cell').removeClass('filled');
+            $('.tetris-cell').removeClass('filled').css('background-color', 'white');
 
             for (var row = 0; row < grid.length; row++) {
                for (var col = 0; col < grid[row].length; col++) {
                   if (grid[row][col]) {
                      var $cell = $('.tetris-grid').find('.tetris-cell').eq(row * 10 + col);
-                     $cell.addClass('filled');
+                     $cell.addClass('filled').css('background-color', grid[row][col]);
                   }
                }
             }
@@ -61,12 +79,41 @@
                for (var col = 0; col < currentPiece.shape[row].length; col++) {
                   if (currentPiece.shape[row][col]) {
                      var $cell = $('.tetris-grid').find('.tetris-cell').eq((currentPiece.row + row) * 10 + (currentPiece.col + col));
-                     $cell.addClass('filled');
+                     $cell.addClass('filled').css('background-color', currentPiece.color);
+                  }
+               }
+            }
+
+            if (savedBlock) {
+               for (var row = 0; row < savedBlock.length; row++) {
+                  for (var col = 0; col < savedBlock[row].length; col++) {
+                     if (savedBlock[row][col]) {
+                        var $cell = $('.saved-block-grid').find('.tetris-cell').eq(row * 4 + col);
+                        $cell.addClass('filled').css('background-color', savedBlock[row][col]);
+                     }
                   }
                }
             }
          }
 
+         function createPiece() {
+            var pieces = [
+               [[1, 1, 1, 1]], // I şekli
+               [[1, 1], [1, 1]], // Kare şekli
+               [[1, 1, 0], [0, 1, 1]], // S şekli
+               [[0, 1, 1], [1, 1, 0]], // Z şekli
+               [[1, 1, 1], [0, 1, 0]], // T şekli
+               [[1, 1, 1], [0, 0, 1]], // L şekli
+               [[1, 1, 1], [1, 0, 0]] // J şekli
+            ];
+
+            var randomPiece = pieces[Math.floor(Math.random() * pieces.length)];
+            currentPiece.shape = randomPiece;
+            currentPiece.row = 0;
+            currentPiece.col = 3;
+            currentPiece.color = getRandomColor();
+            placeSavedBlock();
+         }
 
          function movePiece(rowOffset, colOffset) {
             for (var row = 0; row < currentPiece.shape.length; row++) {
@@ -84,6 +131,7 @@
             currentPiece.col += colOffset;
 
             placePiece();
+            placeSavedBlock(); // Blok hareket ettikten sonra saved-block-grid'i güncelle
          }
 
          function moveDown() {
@@ -117,7 +165,13 @@
 
             if (!checkCollision(0, 0, rotatedPiece)) {
                currentPiece.shape = rotatedPiece;
+               if (checkOverflow()) {
+                  while (checkOverflow()) {
+                     movePiece(0, -1);
+                  }
+               }
                placePiece();
+               placeSavedBlock(); // Blok döndürüldükten sonra saved-block-grid'i güncelle
             }
          }
 
@@ -128,39 +182,17 @@
                      var newRow = currentPiece.row + row;
                      var newCol = currentPiece.col + col;
 
-                     grid[newRow][newCol] = 1;
+                     grid[newRow][newCol] = currentPiece.color;
                   }
                }
             }
-         }
-
-         function checkCollision(rowOffset, colOffset) {
-            for (var row = 0; row < currentPiece.shape.length; row++) {
-               for (var col = 0; col < currentPiece.shape[row].length; col++) {
-                  if (currentPiece.shape[row][col]) {
-                     var newRow = currentPiece.row + row + rowOffset;
-                     var newCol = currentPiece.col + col + colOffset;
-
-                     if (
-                        newRow >= 20 ||
-                        newCol < 0 ||
-                        newCol >= 10 ||
-                        (newRow >= 0 && grid[newRow][newCol])
-                     ) {
-                        return true;
-                     }
-                  }
-               }
-            }
-
-            return false;
          }
 
          function checkLines() {
             var fullRows = [];
 
             for (var row = 0; row < grid.length; row++) {
-               if (grid[row].every(function (cell) { return cell === 1; })) {
+               if (grid[row].every(function (cell) { return cell !== 0; })) {
                   fullRows.push(row);
                }
             }
@@ -169,9 +201,11 @@
                for (var i = 0; i < fullRows.length; i++) {
                   var rowToRemove = fullRows[i];
                   grid.splice(rowToRemove, 1);
-                  grid.unshift([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                  grid.unshift(new Array(10).fill(0));
                }
             }
+            placeSavedBlock();
+            placePiece();
          }
 
          function gameOver() {
@@ -196,58 +230,161 @@
             }
          }
 
-         function createPiece() {
-            var pieces = [
-               [[1, 1, 1, 1]], // I şekli
-               [[1, 1], [1, 1]], // Kare şekli
-               [[1, 1, 0], [0, 1, 1]], // S şekli
-               [[0, 1, 1], [1, 1, 0]], // Z şekli
-               [[1, 1, 1], [0, 1, 0]], // T şekli
-               [[1, 1, 1], [0, 0, 1]], // L şekli
-               [[1, 1, 1], [1, 0, 0]] // J şekli
-            ];
+         function createSavedBlockGrid() {
+            var $grid = $('.saved-block-grid');
+            $grid.empty();
 
-            var randomPiece = pieces[Math.floor(Math.random() * pieces.length)];
-            currentPiece.shape = randomPiece;
-            currentPiece.row = 0;
-            currentPiece.col = 3;
-         }
-
-         function startGame() {
-            createGrid();
-            createPiece();
-            placePiece();
-
-            intervalId = setInterval(moveDown, 1000);
-
-            $(document).keydown(handleKeyPress);
-         }
-         function handleKeyPress(event) {
-            switch (event.keyCode) {
-               case 37: // Sol
-                  if (!checkCollision(0, -1)) {
-                     movePiece(0, -1);
-                  }
-                  break;
-               case 39: // Sağ
-                  if (!checkCollision(0, 1)) {
-                     movePiece(0, 1);
-                  }
-                  break;
-               case 40: // Aşağı
-                  moveDown();
-                  break;
-               case 38: // Yukarı
-                  rotatePiece();
-                  break;
+            for (var row = 0; row < 5; row++) {
+               for (var col = 0; col < 5; col++) {
+                  var $cell = $('<div>').addClass('tetris-cell');
+                  $grid.append($cell);
+               }
             }
          }
 
+         function placeSavedBlock() {
+            $('.saved-block-grid').find('.tetris-cell').removeClass('filled').css('background-color', 'white');
 
-         startGame();
+            if (savedBlock) {
+               for (var row = 0; row < savedBlock.shape.length; row++) {
+                  for (var col = 0; col < savedBlock.shape[row].length; col++) {
+                     if (savedBlock.shape[row][col]) {
+                        var $cell = $('.saved-block-grid').find('.tetris-cell').eq(row * 5 + col);
+                        $cell.addClass('filled').css('background-color', savedBlock.color);
+                     }
+                  }
+               }
+            }
+         }
+
+         // createSavedBlockGrid fonksiyonunu yalnızca bir kez çağırın
+         createSavedBlockGrid();
+
+
+
+         function saveBlock() {
+            if (!savedBlock) {
+               savedBlock = {
+                  shape: currentPiece.shape,
+                  color: currentPiece.color
+               };
+               createPiece();
+               placePiece();
+            } else {
+               var tempShape = savedBlock.shape;
+               var tempColor = savedBlock.color;
+               savedBlock.shape = currentPiece.shape;
+               savedBlock.color = currentPiece.color;
+               currentPiece.shape = tempShape;
+               currentPiece.color = tempColor;
+               currentPiece.row = 0;
+               currentPiece.col = 3;
+               placePiece();
+            }
+
+            placeSavedBlock();
+         }
+
+
+
+         function checkCollision(rowOffset, colOffset, piece) {
+            var checkPiece = piece || currentPiece.shape;
+            var checkRow = currentPiece.row + rowOffset;
+            var checkCol = currentPiece.col + colOffset;
+
+            for (var row = 0; row < checkPiece.length; row++) {
+               for (var col = 0; col < checkPiece[row].length; col++) {
+                  if (
+                     checkPiece[row][col] &&
+                     (checkRow + row >= grid.length ||
+                        checkCol + col < 0 ||
+                        checkCol + col >= grid[0].length ||
+                        grid[checkRow + row][checkCol + col] !== 0)
+                  ) {
+                     return true;
+                  }
+               }
+            }
+
+            return false;
+         }
+
+         function checkOverflow() {
+            for (var row = 0; row < currentPiece.shape.length; row++) {
+               for (var col = 0; col < currentPiece.shape[row].length; col++) {
+                  if (
+                     currentPiece.shape[row][col] &&
+                     (currentPiece.col + col < 0 ||
+                        currentPiece.col + col >= grid[0].length)
+                  ) {
+                     return true;
+                  }
+               }
+            }
+
+            return false;
+         }
+
+         function initGame() {
+            createGrid();
+            createPiece();
+            placePiece();
+            placeSavedBlock();
+            intervalId = setInterval(moveDown, 1000);
+
+            $(document).keydown(function (e) {
+               switch (e.which) {
+                  case 37: // Sol ok
+                     if (!checkCollision(0, -1)) {
+                        movePiece(0, -1);
+                     }
+                     break;
+                  case 38: // Yukarı ok
+                     rotatePiece();
+                     break;
+                  case 39: // Sağ ok
+                     if (!checkCollision(0, 1)) {
+                        movePiece(0, 1);
+                     }
+                     break;
+                  case 40: // Aşağı ok
+                     moveDown();
+                     break;
+                  case 32: // Boşluk
+                     while (!checkCollision(1, 0)) {
+                        movePiece(1, 0);
+                     }
+                     clearPiece(); // Mevcut bloğu sil
+                     freezePiece(); // Mevcut bloğu yerleştir
+                     checkLines(); // Satır kontrolü
+                     createPiece(); // Yeni bir blok oluştur
+                     if (checkCollision(0, 0)) {
+                        gameOver();
+                     }
+                     placePiece(); // Blokları yerleştir
+                     break;
+                  case 67: // C
+                     saveBlock();
+                     break;
+               }
+            });
+
+         }
+
+         initGame();
       });
-
-
+      function clearPiece() {
+         for (var row = 0; row < currentPiece.shape.length; row++) {
+            for (var col = 0; col < currentPiece.shape[row].length; col++) {
+               if (currentPiece.shape[row][col]) {
+                  var $cell = $('.tetris-grid').find('.tetris-cell').eq(
+                     (currentPiece.row + row) * 10 + (currentPiece.col + col)
+                  );
+                  $cell.removeClass('filled').css('background-color', 'white');
+               }
+            }
+         }
+      }
 
 
    </script>
