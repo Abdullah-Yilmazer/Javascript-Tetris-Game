@@ -31,4 +31,4 @@ Contributions are welcome! If you have any ideas for improvements or new feature
 
 ## License
 
-This project is licensed under the [MIT License](link_to_license).
+This project is licensed under the [MIT License](https://github.com/Abdullah-Yilmazer/Javascript-Tetris-Game/blob/main/LICENSE).
