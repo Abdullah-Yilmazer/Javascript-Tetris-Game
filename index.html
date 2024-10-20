@@ -1,393 +1,201 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-   <title>Tetris</title>
-   <style>
+  <head>
+    <title>Tetris</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      .game {
+        width: 100%;
+        height: 100vh;
+        background-color: #c7e9ff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
       .container {
-         width: 200px;
-         margin: 0 auto;
-         display: flex; 
-         gap: 30px;
+        margin: 20px 0;
+        display: flex;
+        gap: 20px;
       }
 
       .tetris-grid {
-         width: 200px;
-         height: 400px;
-         border: 1px solid black;
-         display: grid;
-         grid-template-rows: repeat(20, 20px);
-         grid-template-columns: repeat(10, 20px);
+        width: 200px;
+        height: 400px;
+        box-shadow: 5px 5px #0062a3;
+        border: solid 10px #0099ff;
+        display: grid;
+        grid-template-rows: repeat(20, 20px);
+        grid-template-columns: repeat(10, 20px);
       }
 
       .tetris-cell {
-         background-color: white;
-         border: 1px solid gray;
-         width: 18px;
-         height: 18px;
-      }
-
-      .tetris-cell.filled {
-         background-color: blue;
+        border: 1px solid #00000029;
+        width: 18px;
+        height: 18px;
+        box-shadow: inset -7px -6px 7px #0000ff1f;
       }
 
       .saved-block-grid {
-         width: 100px;
-         height: max-content;
-         display: grid;
-         grid-template-rows: repeat(5, 20px);
-         grid-template-columns: repeat(5, 20px);
-         align-items: center;
-         justify-content: center;
-         border: black 1px solid;
+        width: 80px;
+        height: max-content;
+        display: grid;
+        grid-template-rows: repeat(4, 20px);
+        grid-template-columns: repeat(4, 20px);
+        align-items: center;
+        justify-content: center;
+        box-shadow: 5px 5px #0062a3;
+        border: solid 10px #0099ff;
       }
-   </style>
-</head>
-
-<body>
-   <div class="container">
-      <div class="tetris-grid"></div>
-      <div class="saved-block-grid"></div> <!-- Eklenen Kod: Kaydedilen blokların gösterileceği bölüm -->
-      <div class="next-block"></div> <!-- Eklenen Kod: Sonraki bloğun gösterileceği bölüm -->
-   </div>
-   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-   <script>
-      $(document).ready(function () {
-         var grid = [];
-         var currentPiece = {};
-         var savedBlock = null;
-         var intervalId;
-         var colors = ['yellow', 'red', 'blue', 'purple', 'green', 'orange', 'navy'];
-
-         function getRandomColor() {
-            return colors[Math.floor(Math.random() * colors.length)];
-         }
-
-         function placePiece() {
-            $('.tetris-cell').removeClass('filled').css('background-color', 'white');
-
-            for (var row = 0; row < grid.length; row++) {
-               for (var col = 0; col < grid[row].length; col++) {
-                  if (grid[row][col]) {
-                     var $cell = $('.tetris-grid').find('.tetris-cell').eq(row * 10 + col);
-                     $cell.addClass('filled').css('background-color', grid[row][col]);
-                  }
-               }
-            }
-
-            for (var row = 0; row < currentPiece.shape.length; row++) {
-               for (var col = 0; col < currentPiece.shape[row].length; col++) {
-                  if (currentPiece.shape[row][col]) {
-                     var $cell = $('.tetris-grid').find('.tetris-cell').eq((currentPiece.row + row) * 10 + (currentPiece.col + col));
-                     $cell.addClass('filled').css('background-color', currentPiece.color);
-                  }
-               }
-            }
-
-            if (savedBlock) {
-               for (var row = 0; row < savedBlock.length; row++) {
-                  for (var col = 0; col < savedBlock[row].length; col++) {
-                     if (savedBlock[row][col]) {
-                        var $cell = $('.saved-block-grid').find('.tetris-cell').eq(row * 4 + col);
-                        $cell.addClass('filled').css('background-color', savedBlock[row][col]);
-                     }
-                  }
-               }
-            }
-         }
-
-         function createPiece() {
-            var pieces = [
-               [[1, 1, 1, 1]], // I şekli
-               [[1, 1], [1, 1]], // Kare şekli
-               [[1, 1, 0], [0, 1, 1]], // S şekli
-               [[0, 1, 1], [1, 1, 0]], // Z şekli
-               [[1, 1, 1], [0, 1, 0]], // T şekli
-               [[1, 1, 1], [0, 0, 1]], // L şekli
-               [[1, 1, 1], [1, 0, 0]] // J şekli
-            ];
-
-            var randomPiece = pieces[Math.floor(Math.random() * pieces.length)];
-            currentPiece.shape = randomPiece;
-            currentPiece.row = 0;
-            currentPiece.col = 3;
-            currentPiece.color = getRandomColor();
-            placeSavedBlock();
-         }
-
-         function movePiece(rowOffset, colOffset) {
-            for (var row = 0; row < currentPiece.shape.length; row++) {
-               for (var col = 0; col < currentPiece.shape[row].length; col++) {
-                  if (currentPiece.shape[row][col]) {
-                     var $cell = $('.tetris-grid').find('.tetris-cell').eq(
-                        (currentPiece.row + row) * 10 + (currentPiece.col + col)
-                     );
-                     $cell.removeClass('filled');
-                  }
-               }
-            }
-
-            currentPiece.row += rowOffset;
-            currentPiece.col += colOffset;
-
-            placePiece();
-            placeSavedBlock(); // Blok hareket ettikten sonra saved-block-grid'i güncelle
-         }
-
-         function moveDown() {
-            if (!checkCollision(1, 0)) {
-               movePiece(1, 0);
-            } else {
-               freezePiece();
-               checkLines();
-               createPiece();
-
-               if (checkCollision(0, 0)) {
-                  gameOver();
-               }
-            }
-         }
-
-         function rotatePiece() {
-            var rotatedPiece = [];
-            var rows = currentPiece.shape.length;
-            var cols = currentPiece.shape[0].length;
-
-            for (var col = 0; col < cols; col++) {
-               var newRow = [];
-
-               for (var row = rows - 1; row >= 0; row--) {
-                  newRow.push(currentPiece.shape[row][col]);
-               }
-
-               rotatedPiece.push(newRow);
-            }
-
-            if (!checkCollision(0, 0, rotatedPiece)) {
-               currentPiece.shape = rotatedPiece;
-               if (checkOverflow()) {
-                  while (checkOverflow()) {
-                     movePiece(0, -1);
-                  }
-               }
-               placePiece();
-               placeSavedBlock(); // Blok döndürüldükten sonra saved-block-grid'i güncelle
-            }
-         }
-
-         function freezePiece() {
-            for (var row = 0; row < currentPiece.shape.length; row++) {
-               for (var col = 0; col < currentPiece.shape[row].length; col++) {
-                  if (currentPiece.shape[row][col]) {
-                     var newRow = currentPiece.row + row;
-                     var newCol = currentPiece.col + col;
-
-                     grid[newRow][newCol] = currentPiece.color;
-                  }
-               }
-            }
-         }
-
-         function checkLines() {
-            var fullRows = [];
-
-            for (var row = 0; row < grid.length; row++) {
-               if (grid[row].every(function (cell) { return cell !== 0; })) {
-                  fullRows.push(row);
-               }
-            }
-
-            if (fullRows.length > 0) {
-               for (var i = 0; i < fullRows.length; i++) {
-                  var rowToRemove = fullRows[i];
-                  grid.splice(rowToRemove, 1);
-                  grid.unshift(new Array(10).fill(0));
-               }
-            }
-            placeSavedBlock();
-            placePiece();
-         }
-
-         function gameOver() {
-            clearInterval(intervalId);
-            alert('Game Over!');
-         }
-
-         function createGrid() {
-            var $grid = $('.tetris-grid');
-            $grid.empty();
-
-            for (var row = 0; row < 20; row++) {
-               var rowArray = [];
-
-               for (var col = 0; col < 10; col++) {
-                  var $cell = $('<div>').addClass('tetris-cell');
-                  $grid.append($cell);
-                  rowArray.push(0);
-               }
-
-               grid.push(rowArray);
-            }
-         }
-
-         function createSavedBlockGrid() {
-            var $grid = $('.saved-block-grid');
-            $grid.empty();
-
-            for (var row = 0; row < 5; row++) {
-               for (var col = 0; col < 5; col++) {
-                  var $cell = $('<div>').addClass('tetris-cell');
-                  $grid.append($cell);
-               }
-            }
-         }
-
-         function placeSavedBlock() {
-            $('.saved-block-grid').find('.tetris-cell').removeClass('filled').css('background-color', 'white');
-
-            if (savedBlock) {
-               for (var row = 0; row < savedBlock.shape.length; row++) {
-                  for (var col = 0; col < savedBlock.shape[row].length; col++) {
-                     if (savedBlock.shape[row][col]) {
-                        var $cell = $('.saved-block-grid').find('.tetris-cell').eq(row * 5 + col);
-                        $cell.addClass('filled').css('background-color', savedBlock.color);
-                     }
-                  }
-               }
-            }
-         }
-
-         // createSavedBlockGrid fonksiyonunu yalnızca bir kez çağırın
-         createSavedBlockGrid();
-
-
-
-         function saveBlock() {
-            if (!savedBlock) {
-               savedBlock = {
-                  shape: currentPiece.shape,
-                  color: currentPiece.color
-               };
-               createPiece();
-               placePiece();
-            } else {
-               var tempShape = savedBlock.shape;
-               var tempColor = savedBlock.color;
-               savedBlock.shape = currentPiece.shape;
-               savedBlock.color = currentPiece.color;
-               currentPiece.shape = tempShape;
-               currentPiece.color = tempColor;
-               currentPiece.row = 0;
-               currentPiece.col = 3;
-               placePiece();
-            }
-
-            placeSavedBlock();
-         }
-
-
-
-         function checkCollision(rowOffset, colOffset, piece) {
-            var checkPiece = piece || currentPiece.shape;
-            var checkRow = currentPiece.row + rowOffset;
-            var checkCol = currentPiece.col + colOffset;
-
-            for (var row = 0; row < checkPiece.length; row++) {
-               for (var col = 0; col < checkPiece[row].length; col++) {
-                  if (
-                     checkPiece[row][col] &&
-                     (checkRow + row >= grid.length ||
-                        checkCol + col < 0 ||
-                        checkCol + col >= grid[0].length ||
-                        grid[checkRow + row][checkCol + col] !== 0)
-                  ) {
-                     return true;
-                  }
-               }
-            }
-
-            return false;
-         }
-
-         function checkOverflow() {
-            for (var row = 0; row < currentPiece.shape.length; row++) {
-               for (var col = 0; col < currentPiece.shape[row].length; col++) {
-                  if (
-                     currentPiece.shape[row][col] &&
-                     (currentPiece.col + col < 0 ||
-                        currentPiece.col + col >= grid[0].length)
-                  ) {
-                     return true;
-                  }
-               }
-            }
-
-            return false;
-         }
-
-         function initGame() {
-            createGrid();
-            createPiece();
-            placePiece();
-            placeSavedBlock();
-            intervalId = setInterval(moveDown, 1000);
-
-            $(document).keydown(function (e) {
-               switch (e.which) {
-                  case 37: // Sol ok
-                     if (!checkCollision(0, -1)) {
-                        movePiece(0, -1);
-                     }
-                     break;
-                  case 38: // Yukarı ok
-                     rotatePiece();
-                     break;
-                  case 39: // Sağ ok
-                     if (!checkCollision(0, 1)) {
-                        movePiece(0, 1);
-                     }
-                     break;
-                  case 40: // Aşağı ok
-                     moveDown();
-                     break;
-                  case 32: // Boşluk
-                     while (!checkCollision(1, 0)) {
-                        movePiece(1, 0);
-                     }
-                     clearPiece(); // Mevcut bloğu sil
-                     freezePiece(); // Mevcut bloğu yerleştir
-                     checkLines(); // Satır kontrolü
-                     createPiece(); // Yeni bir blok oluştur
-                     if (checkCollision(0, 0)) {
-                        gameOver();
-                     }
-                     placePiece(); // Blokları yerleştir
-                     break;
-                  case 67: // C
-                     saveBlock();
-                     break;
-               }
-            });
-
-         }
-
-         initGame();
-      });
-      function clearPiece() {
-         for (var row = 0; row < currentPiece.shape.length; row++) {
-            for (var col = 0; col < currentPiece.shape[row].length; col++) {
-               if (currentPiece.shape[row][col]) {
-                  var $cell = $('.tetris-grid').find('.tetris-cell').eq(
-                     (currentPiece.row + row) * 10 + (currentPiece.col + col)
-                  );
-                  $cell.removeClass('filled').css('background-color', 'white');
-               }
-            }
-         }
+      .next-block-grid {
+        width: 80px;
+        height: max-content;
+        display: grid;
+        grid-template-rows: repeat(4, 20px);
+        grid-template-columns: repeat(4, 20px);
+        align-items: center;
+        justify-content: center;
+        box-shadow: 5px 5px #0062a3;
+        border: solid 10px #0099ff;
       }
 
+      #start-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border: 1px solid black;
+      }
 
-   </script>
-</body>
+      #start-button {
+        padding: 10px 20px;
+        background-color: #0099ff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
 
+      .keys {
+        padding: 20px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+      }
+      .key {
+        width: 40px;
+        border: 2px solid #0099ff;
+        box-shadow: 5px 5px #0099ff;
+        font-size: 2.5em;
+        line-height: 0.85em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        padding: 3px 5px;
+        white-space: nowrap;
+        margin: 5px;
+        transition: all 0.2s ease;
+        background-color: white;
+      }
+      .key:hover, .key.active {
+        background-color: #d8f0ff;
+        box-shadow: 2px 2px #0099ff;
+        cursor: pointer;
+      }
+      #pause-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border: 1px solid black;
+        display: none;
+      }
+      #score,
+      #level {
+        font-size: 1.5em;
+        line-height: 0.85em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        padding: 3px 5px;
+        white-space: nowrap;
+        margin: 5px;
+        background-color: white;
+      }
+      #score {
+        margin-top: 20px;
+        border: 2px solid #0099ff;
+        box-shadow: 5px 5px #0099ff;
+      }
+      #level {
+        border: 2px solid #0099ff;
+        box-shadow: 5px 5px #0099ff;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="game">
+      <div class="score-board">
+        <div id="score">Score: 0</div>
+        <div id="level">Level: 1</div>
+      </div>
+      <div class="container">
+        <div>
+          <div class="saved-block-grid"></div>
+          <div class="keys">
+            <div class="key" id="save">c</div>
+          </div>
+        </div>
+        <div>
+          <div class="tetris-grid"></div>
+          <div class="keys">
+            <div class="key" id="up">▲</div>
+            <div>
+              <div class="key" id="left">◄</div>
+              <div class="key" id="fastDown">●</div>
+              <div class="key" id="right">►</div>
+            </div>
+            <div class="key" id="down">▼</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="next-block-grid"></div>
+
+          <div class="keys">
+            <div class="key" id="pause-button">❚❚</div>
+          </div>
+        </div>
+      </div>
+      <div id="start-screen">
+        <h1>Tetris</h1>
+        <button id="start-button">Start</button>
+      </div>
+      <div id="pause-screen">
+        <h1>Pause</h1>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="./script.js"></script>
+  </body>
 </html>
