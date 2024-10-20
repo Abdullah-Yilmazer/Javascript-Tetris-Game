@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./screenshot.png" alt="Screenhot"/>
+</p>
+
 # Javascript Tetris Game
 
 This project is a Tetris game developed with JavaScript without using any libraries. You can play the game by clicking [here](https://github.com/Abdullah-Yilmazer/Javascript-Tetris-Game).
